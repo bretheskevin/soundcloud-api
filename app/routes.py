@@ -4,8 +4,6 @@ from fastapi import APIRouter, HTTPException, Query
 
 from .sc_playlist_manager import SoundCloudPlaylistManager
 
-# acid playlist 1742680302
-
 router = APIRouter()
 
 @router.get("/health")

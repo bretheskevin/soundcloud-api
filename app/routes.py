@@ -8,6 +8,10 @@ from .sc_playlist_manager import SoundCloudPlaylistManager
 
 router = APIRouter()
 
+@router.get("/health")
+def health_check():
+    return {"status": "healthy"}
+
 @router.get("/playlists/{playlist_id}/track-ids", response_model=List[int])
 def get_track_ids(
         playlist_id: int,

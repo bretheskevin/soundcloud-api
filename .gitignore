@@ -2,3 +2,4 @@
 venv
 soundcloud_api.egg-info
 soundcloud-api.iml
+app/__pycache__

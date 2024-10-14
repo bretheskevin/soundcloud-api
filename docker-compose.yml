@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   web:
-    build: .
+    build: ./dockerfiles/dev
     ports:
       - "8000:8000"
     restart: unless-stopped

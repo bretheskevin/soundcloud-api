@@ -15,6 +15,9 @@ class SoundCloudPlaylistManager:
         if title:
             self.__title__ = title
 
+    def check_token(self) -> bool:
+        return self.sc.is_auth_token_valid()
+
     def get_track_ids(self, playlist_id: int) -> list:
         return [track.id for track in self.sc.get_playlist(playlist_id).tracks]
 

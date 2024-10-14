@@ -10,6 +10,16 @@ router = APIRouter()
 def health_check():
     return {"status": "healthy"}
 
+@router.get("/check-token")
+def check_token(
+        token: str = Query("", description="SoundCloud API token"),
+):
+    try:
+        manager = SoundCloudPlaylistManager(token=token)
+        return manager.check_token()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/playlists/{playlist_id}/track-ids", response_model=List[int])
 def get_track_ids(
         playlist_id: int,
@@ -33,7 +43,7 @@ def get_unplayed_track_ids(
             base_playlist_id=base_playlist_id,
             played_playlist_ids=played_playlist_ids
         )
-        return manager.get_unplayed_track_ids()
+        return manager.get_udnplayed_track_ids()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

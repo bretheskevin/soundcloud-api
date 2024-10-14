@@ -16,7 +16,9 @@ def check_token(
 ):
     try:
         manager = SoundCloudPlaylistManager(token=token)
-        return manager.check_token()
+        return {
+            "is_valid": manager.check_token()
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

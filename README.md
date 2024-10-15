@@ -51,60 +51,7 @@ The API will be available at `http://localhost:8000`.
 
 ## API Documentation
 
-### Health Check
-
-- **GET** `/health`
-    - Description: Check the health status of the API
-    - Response: `{"status": "healthy"}`
-
-### Get Track IDs
-
-- **GET** `/playlists/{playlist_id}/track-ids`
-    - Description: Retrieve track IDs from a specific playlist
-    - Parameters:
-        - `playlist_id` (path): ID of the playlist
-        - `token` (query): SoundCloud API token
-    - Response: List of track IDs
-
-### Get Unplayed Track IDs
-
-- **GET** `/unplayed-track-ids`
-    - Description: Retrieve unplayed track IDs
-    - Parameters:
-        - `token` (query): SoundCloud API token
-        - `base_playlist_id` (query): Base playlist ID
-        - `played_playlist_ids` (query): List of played playlist IDs
-    - Response: List of unplayed track IDs
-
-### Create Unplayed Tracks Playlist
-
-- **POST** `/create-unplayed-tracks`
-    - Description: Create a playlist of unplayed tracks
-    - Parameters:
-        - `token` (query): SoundCloud API token
-        - `base_playlist_id` (query): Base playlist ID
-        - `played_playlist_ids` (query): List of played playlist IDs
-        - `title` (query, optional): Playlist title (default: "Unplayed Tracks")
-    - Response: Success message
-
-### Generate Random Playlist
-
-- **POST** `/generate-random-playlist`
-    - Description: Generate a random playlist from an existing playlist
-    - Parameters:
-        - `token` (query): SoundCloud API token
-        - `playlist_id` (query): ID of the source playlist
-        - `tracks_count` (query, optional): Number of tracks in the random playlist (default: 30)
-    - Response: Success message
-
-### Delete Playlist
-
-- **DELETE** `/playlists/{playlist_id}`
-    - Description: Delete a specific playlist
-    - Parameters:
-        - `playlist_id` (path): ID of the playlist to delete
-        - `token` (query): SoundCloud API token
-    - Response: Success message
+Swagger documentatin at `http://localhost:8000/docs`
 
 ## Error Handling
 
@@ -112,7 +59,7 @@ All endpoints will return appropriate HTTP status codes and error messages in ca
 
 ## Authentication
 
-All endpoints require a SoundCloud API token to be provided as a query parameter `token`.
+Most of endpoints require a SoundCloud API token to be provided as a query parameter `token`.
 
 ## Note
 

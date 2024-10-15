@@ -3,6 +3,7 @@ from typing import List
 from fastapi import APIRouter, HTTPException, Query
 
 from .sc_playlist_manager import SoundCloudPlaylistManager
+from soundcloud import BasicAlbumPlaylist
 
 router = APIRouter()
 
@@ -19,6 +20,38 @@ def check_token(
         return {
             "is_valid": manager.check_token()
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/me")
+def get_me(
+        token: str = Query("", description="SoundCloud API token"),
+):
+    try:
+        manager = SoundCloudPlaylistManager(token=token)
+        return manager.get_me()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/user-playlists/{user_id}", response_model=List[BasicAlbumPlaylist])
+def get_user_playlists(
+        user_id: int,
+        token: str = Query("", description="SoundCloud API token"),
+):
+    try:
+        manager = SoundCloudPlaylistManager(token=token)
+        return manager.get_user_playlists(user_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/my-playlists", response_model=List[BasicAlbumPlaylist])
+def get_my_playlists(
+        token: str = Query("", description="SoundCloud API token"),
+):
+    try:
+        manager = SoundCloudPlaylistManager(token=token)
+        return manager.get_my_playlists()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

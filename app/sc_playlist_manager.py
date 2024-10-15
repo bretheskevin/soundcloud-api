@@ -38,3 +38,12 @@ class SoundCloudPlaylistManager:
 
     def delete_playlist(self, playlist_id: int) -> None:
         self.sc.delete_playlist(playlist_id)
+
+    def get_me(self):
+        return self.sc.get_me()
+
+    def get_user_playlists(self, user_id: int) -> list:
+        return self.sc.get_user_playlists(user_id)
+
+    def get_my_playlists(self) -> list:
+        return self.get_user_playlists(self.sc.get_me().id)

@@ -1,7 +1,7 @@
 from typing import List
 
 from fastapi import APIRouter, HTTPException, Query
-from soundcloud import BasicAlbumPlaylist, BasicUser
+from soundcloud import BasicAlbumPlaylist, User
 
 from .api_responses.check_token_response import CheckTokenResponse
 from .api_responses.health_check_response import HealthCheckResponse
@@ -27,7 +27,7 @@ def check_token(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/me", response_model=BasicUser)
+@router.get("/me", response_model=User)
 def get_me(
     token: str = Query("", description="SoundCloud API token"),
 ):

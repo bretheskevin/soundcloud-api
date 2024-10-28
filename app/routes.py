@@ -1,7 +1,7 @@
 from typing import List
 
 from fastapi import APIRouter, HTTPException, Query
-from soundcloud import BasicAlbumPlaylist, User
+from soundcloud import BasicAlbumPlaylist, User, BasicTrack
 
 from .api_responses.check_token_response import CheckTokenResponse
 from .api_responses.health_check_response import HealthCheckResponse
@@ -91,6 +91,26 @@ def get_unplayed_track_ids(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/user-tracks/{user_id}", response_model=list[BasicTrack])
+def get_user_tracks(
+    user_id: int,
+    token: str = Query(..., description="SoundCloud API token"),
+):
+    try:
+        manager = SoundCloudPlaylistManager(token=token)
+        return manager.get_user_tracks(user_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/my-tracks", response_model=list[BasicTrack])
+def get_my_tracks(
+    token: str = Query(..., description="SoundCloud API token"),
+):
+    try:
+        manager = SoundCloudPlaylistManager(token=token)
+        return manager.get_my_tracks()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/create-unplayed-tracks", response_model=MessageResponse)
 def create_unplayed_tracks(

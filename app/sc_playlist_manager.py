@@ -62,3 +62,9 @@ class SoundCloudPlaylistManager:
 
     def get_my_playlists(self) -> list:
         return self.get_user_playlists(self.sc.get_me().id)
+
+    def get_user_tracks(self, user_id: int) -> list:
+        return self.sc.get_user_tracks(user_id)
+
+    def get_my_tracks(self) -> list:
+        return self.get_user_tracks(self.sc.get_me().id)

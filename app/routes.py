@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Body
 from soundcloud import BasicAlbumPlaylist, User, BasicTrack
 
 from .api_responses.check_token_response import CheckTokenResponse
@@ -115,11 +115,11 @@ def get_my_tracks(
 @router.post("/create-unplayed-tracks", response_model=MessageResponse)
 def create_unplayed_tracks(
     token: str = Query(..., description="SoundCloud API token"),
-    base_playlist_id: int = Query(..., description="Base playlist ID"),
-    played_playlist_ids: List[int] = Query(
+    base_playlist_id: int = Body(..., description="Base playlist ID"),
+    played_playlist_ids: List[int] = Body(
         ..., description="List of played playlist IDs"
     ),
-    title: str = Query("Unplayed Tracks", description="Playlist title"),
+    title: str = Body("Unplayed Tracks", description="Playlist title"),
 ):
     try:
         manager = SoundCloudPlaylistManager(
@@ -139,10 +139,10 @@ def create_unplayed_tracks(
 @router.post("/generate-random-playlist", response_model=MessageResponse)
 def generate_random_playlist(
     token: str = Query(..., description="SoundCloud API token"),
-    playlist_id: int = Query(
+    playlist_id: int = Body(
         ..., description="Playlist ID from which the random playlist will be generated"
     ),
-    tracks_count: int = Query(
+    tracks_count: int = Body(
         30, description="Number of tracks in the random playlist"
     ),
 ):

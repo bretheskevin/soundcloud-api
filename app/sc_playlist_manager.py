@@ -39,9 +39,20 @@ class SoundCloudPlaylistManager:
             track_id for track_id in base_track_ids if track_id not in played_track_ids
         ]
 
+    def get_track_ids_from_playlist_ids(self, playlist_ids: list) -> list:
+        return [
+            track_id
+            for playlist_id in playlist_ids
+            for track_id in self.get_track_ids(playlist_id)
+        ]
+
     def create_unplayed_tracks(self) -> None:
         unplayed_track_ids = self.get_unplayed_track_ids()
         self.sc.post_playlist("private", self.__title__, unplayed_track_ids)
+
+    def create_playlist_from_playlist_ids(self, playlist_ids: list) -> None:
+        track_ids = self.get_track_ids_from_playlist_ids(playlist_ids)
+        self.sc.post_playlist("private", self.__title__, track_ids)
 
     def generate_random_playlist(self, tracks_count: int = 30) -> None:
         unplayed_track_ids = self.get_unplayed_track_ids()

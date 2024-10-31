@@ -135,6 +135,23 @@ def create_unplayed_tracks(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/merge-playlists", response_model=MessageResponse)
+def create_playlists_from_playlist_ids(
+    token: str = Query(..., description="SoundCloud API token"),
+    playlist_ids: List[int] = Body(
+        ..., description="List of playlist IDs from which the playlists will be created"
+    ),
+    title: str = Body("Playlists from Playlist IDs", description="Playlist title"),
+):
+    try:
+        manager = SoundCloudPlaylistManager(token=token)
+        manager.create_playlist_from_playlist_ids(playlist_ids=playlist_ids, title=title)
+        return {
+            "message": "Playlist created successfully. Check you playlists :)"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/generate-random-playlist", response_model=MessageResponse)
 def generate_random_playlist(

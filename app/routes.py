@@ -136,7 +136,7 @@ def create_unplayed_tracks(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/merge-playlists", response_model=MessageResponse)
-def create_playlists_from_playlist_ids(
+def merge_playlists(
     token: str = Query(..., description="SoundCloud API token"),
     playlist_ids: List[int] = Body(
         ..., description="List of playlist IDs from which the playlists will be created"

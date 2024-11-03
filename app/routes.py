@@ -90,7 +90,7 @@ async def validate_token(
         ApiResponse with success status and appropriate message
     """
     try:
-        manager = SoundCloudPlaylistManager(token=token)
+        SoundCloudPlaylistManager(token=token)
         return ApiResponse(
             success=True,
             message="Token is valid"

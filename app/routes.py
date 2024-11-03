@@ -78,6 +78,31 @@ async def get_tracks(
     except PlaylistManagerError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
+@router.get("/token/validate", response_model=ApiResponse)
+async def validate_token(
+        token: str = Query(..., description="SoundCloud API token to validate")
+):
+    """
+    Validate a SoundCloud API token.
+
+    Returns:
+        ApiResponse with success status and appropriate message
+    """
+    try:
+        manager = SoundCloudPlaylistManager(token=token)
+        return ApiResponse(
+            success=True,
+            message="Token is valid"
+        )
+    except InvalidTokenError as e:
+        return ApiResponse(
+            success=False,
+            message=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/playlists/unplayed", response_model=ApiResponse)
 async def create_unplayed_tracks_playlist(
         request: UnplayedTracksRequest = Body(...),

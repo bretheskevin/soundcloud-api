@@ -50,9 +50,21 @@ class SoundCloudPlaylistManager:
         unplayed_track_ids = self.get_unplayed_track_ids()
         self.sc.post_playlist("private", self.__title__, unplayed_track_ids)
 
-    def create_playlist_from_playlist_ids(self, playlist_ids: list) -> None:
+    def create_playlist_from_playlist_ids(self, playlist_ids: list) -> dict:
         track_ids = self.get_track_ids_from_playlist_ids(playlist_ids)
+        track_ids = list(set(track_ids))
+
+        if len(track_ids) > 500:
+            return {
+                "success": False,
+                "message": "You can only create playlists with a maximum of 500 tracks",
+            }
+
         self.sc.post_playlist("private", self.__title__, track_ids)
+        return {
+            "success": True,
+            "message": "Playlist created successfully. Check you playlists :)",
+        }
 
     def generate_random_playlist(self, tracks_count: int = 30) -> None:
         unplayed_track_ids = self.get_unplayed_track_ids()

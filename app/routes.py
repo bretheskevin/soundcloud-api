@@ -5,7 +5,7 @@ from soundcloud import BasicAlbumPlaylist, User, BasicTrack
 
 from .api_responses.check_token_response import CheckTokenResponse
 from .api_responses.health_check_response import HealthCheckResponse
-from .api_responses.message_response import MessageResponse
+from .api_responses.message_response import MessageResponse, ApiResponse
 from .sc_playlist_manager import SoundCloudPlaylistManager
 
 router = APIRouter()
@@ -135,7 +135,7 @@ def create_unplayed_tracks(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/merge-playlists", response_model=MessageResponse)
+@router.post("/merge-playlists", response_model=ApiResponse)
 def merge_playlists(
     token: str = Query(..., description="SoundCloud API token"),
     playlist_ids: List[int] = Body(
@@ -145,10 +145,9 @@ def merge_playlists(
 ):
     try:
         manager = SoundCloudPlaylistManager(token=token, title=title)
-        manager.create_playlist_from_playlist_ids(playlist_ids=playlist_ids)
-        return {
-            "message": "Playlist created successfully. Check you playlists :)"
-        }
+        response = manager.create_playlist_from_playlist_ids(playlist_ids=playlist_ids)
+
+        return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

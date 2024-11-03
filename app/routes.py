@@ -144,8 +144,8 @@ def merge_playlists(
     title: str = Body("Playlists from Playlist IDs", description="Playlist title"),
 ):
     try:
-        manager = SoundCloudPlaylistManager(token=token)
-        manager.create_playlist_from_playlist_ids(playlist_ids=playlist_ids, title=title)
+        manager = SoundCloudPlaylistManager(token=token, title=title)
+        manager.create_playlist_from_playlist_ids(playlist_ids=playlist_ids)
         return {
             "message": "Playlist created successfully. Check you playlists :)"
         }

@@ -1,187 +1,167 @@
-from typing import List
-
-from fastapi import APIRouter, HTTPException, Query, Body
+from typing import List, Optional
+from fastapi import APIRouter, HTTPException, Query, Body, Depends
 from soundcloud import BasicAlbumPlaylist, User, BasicTrack
 
-from .api_responses.check_token_response import CheckTokenResponse
 from .api_responses.health_check_response import HealthCheckResponse
-from .api_responses.message_response import MessageResponse, ApiResponse
-from .sc_playlist_manager import SoundCloudPlaylistManager
+from .api_responses.api_response import ApiResponse
+from .sc_playlist_manager import (
+    SoundCloudPlaylistManager,
+    PlaylistCreateOptions,
+    PlaylistManagerError,
+    InvalidTokenError,
+    TrackLimitExceededError,
+)
+from .api_requests.unplayed_tracks_request import UnplayedTracksRequest
+from .api_requests.merge_playlists_request import MergePlaylistsRequest
+from .api_requests.random_playlist_request import RandomPlaylistRequest
 
-router = APIRouter()
+router = APIRouter(prefix="/api/v1/sdpm", tags=["soundcloud"])
 
+async def get_playlist_manager(
+        token: str = Query(..., description="SoundCloud API token")
+) -> SoundCloudPlaylistManager:
+    """
+    Dependency to create and validate SoundCloudPlaylistManager instance.
+    """
+    try:
+        return SoundCloudPlaylistManager(token=token)
+    except InvalidTokenError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/health", response_model=HealthCheckResponse)
-def health_check():
+async def health_check():
+    """Health check endpoint."""
     return {"status": "healthy"}
 
-
-@router.get("/check-token", response_model=CheckTokenResponse)
-def check_token(
-    token: str = Query("", description="SoundCloud API token"),
+@router.get("/users/me", response_model=User)
+async def get_current_user(
+        manager: SoundCloudPlaylistManager = Depends(get_playlist_manager)
 ):
+    """Get current user information."""
     try:
-        manager = SoundCloudPlaylistManager(token=token)
-        return {"is_valid": manager.check_token()}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return manager.get_user()
+    except PlaylistManagerError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-
-@router.get("/me", response_model=User)
-def get_me(
-    token: str = Query("", description="SoundCloud API token"),
+@router.get("/users/{user_id}", response_model=User)
+async def get_user(
+        user_id: int,
+        manager: SoundCloudPlaylistManager = Depends(get_playlist_manager)
 ):
+    """Get user information by ID."""
     try:
-        manager = SoundCloudPlaylistManager(token=token)
-        return manager.get_me()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return manager.get_user(user_id)
+    except PlaylistManagerError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-
-@router.get("/user-playlists/{user_id}", response_model=List[BasicAlbumPlaylist])
-def get_user_playlists(
-    user_id: int,
-    token: str = Query("", description="SoundCloud API token"),
+@router.get("/playlists", response_model=List[BasicAlbumPlaylist])
+async def get_playlists(
+        user_id: Optional[int] = Query(None, description="User ID (optional, defaults to current user)"),
+        manager: SoundCloudPlaylistManager = Depends(get_playlist_manager)
 ):
+    """Get playlists for a user."""
     try:
-        manager = SoundCloudPlaylistManager(token=token)
-        return manager.get_user_playlists(user_id)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return manager.get_playlists(user_id)
+    except PlaylistManagerError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-
-@router.get("/my-playlists", response_model=List[BasicAlbumPlaylist])
-def get_my_playlists(
-    token: str = Query("", description="SoundCloud API token"),
+@router.get("/tracks", response_model=List[BasicTrack])
+async def get_tracks(
+        user_id: Optional[int] = Query(None, description="User ID (optional, defaults to current user)"),
+        manager: SoundCloudPlaylistManager = Depends(get_playlist_manager)
 ):
+    """Get tracks for a user."""
     try:
-        manager = SoundCloudPlaylistManager(token=token)
-        return manager.get_my_playlists()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return manager.get_tracks(user_id)
+    except PlaylistManagerError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-
-@router.get("/playlists/{playlist_id}/track-ids", response_model=List[int])
-def get_track_ids(
-    playlist_id: int,
-    token: str = Query(..., description="SoundCloud API token"),
+@router.post("/playlists/unplayed", response_model=ApiResponse)
+async def create_unplayed_tracks_playlist(
+        request: UnplayedTracksRequest = Body(...),
+        manager: SoundCloudPlaylistManager = Depends(get_playlist_manager)
 ):
+    """Create a playlist of unplayed tracks."""
     try:
-        manager = SoundCloudPlaylistManager(token=token)
-        return manager.get_track_ids(playlist_id)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/unplayed-track-ids", response_model=List[int])
-def get_unplayed_track_ids(
-    token: str = Query(..., description="SoundCloud API token"),
-    base_playlist_id: int = Query(..., description="Base playlist ID"),
-    played_playlist_ids: List[int] = Query(
-        ..., description="List of played playlist IDs"
-    ),
-):
-    try:
-        manager = SoundCloudPlaylistManager(
-            token=token,
-            base_playlist_id=base_playlist_id,
-            played_playlist_ids=played_playlist_ids,
+        options = PlaylistCreateOptions(
+            title=request.title,
+            visibility=request.visibility
         )
-        return manager.get_unplayed_track_ids()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/user-tracks/{user_id}", response_model=list[BasicTrack])
-def get_user_tracks(
-    user_id: int,
-    token: str = Query(..., description="SoundCloud API token"),
-):
-    try:
-        manager = SoundCloudPlaylistManager(token=token)
-        return manager.get_user_tracks(user_id)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/my-tracks", response_model=list[BasicTrack])
-def get_my_tracks(
-    token: str = Query(..., description="SoundCloud API token"),
-):
-    try:
-        manager = SoundCloudPlaylistManager(token=token)
-        return manager.get_my_tracks()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/create-unplayed-tracks", response_model=MessageResponse)
-def create_unplayed_tracks(
-    token: str = Query(..., description="SoundCloud API token"),
-    base_playlist_id: int = Body(..., description="Base playlist ID"),
-    played_playlist_ids: List[int] = Body(
-        ..., description="List of played playlist IDs"
-    ),
-    title: str = Body("Unplayed Tracks", description="Playlist title"),
-):
-    try:
-        manager = SoundCloudPlaylistManager(
-            token=token,
-            base_playlist_id=base_playlist_id,
-            played_playlist_ids=played_playlist_ids,
-            title=title,
+        return manager.create_unplayed_tracks_playlist(
+            base_playlist_id=request.base_playlist_id,
+            played_playlist_ids=request.played_playlist_ids,
+            options=options
         )
-        manager.create_unplayed_tracks()
-        return {
-            "message": "Unplayed tracks playlist created successfully. Check you playlists :)"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except TrackLimitExceededError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except PlaylistManagerError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-@router.post("/merge-playlists", response_model=ApiResponse)
-def merge_playlists(
-    token: str = Query(..., description="SoundCloud API token"),
-    playlist_ids: List[int] = Body(
-        ..., description="List of playlist IDs from which the playlists will be created"
-    ),
-    title: str = Body("Playlists from Playlist IDs", description="Playlist title"),
+@router.post("/playlists/merge", response_model=ApiResponse)
+async def merge_playlists(
+        request: MergePlaylistsRequest = Body(...),
+        manager: SoundCloudPlaylistManager = Depends(get_playlist_manager)
 ):
+    """Merge multiple playlists into a new playlist."""
     try:
-        manager = SoundCloudPlaylistManager(token=token, title=title)
-        response = manager.create_playlist_from_playlist_ids(playlist_ids=playlist_ids)
-
-        return response
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/generate-random-playlist", response_model=MessageResponse)
-def generate_random_playlist(
-    token: str = Query(..., description="SoundCloud API token"),
-    playlist_id: int = Body(
-        ..., description="Playlist ID from which the random playlist will be generated"
-    ),
-    tracks_count: int = Body(
-        30, description="Number of tracks in the random playlist"
-    ),
-):
-    try:
-        manager = SoundCloudPlaylistManager(token=token, base_playlist_id=playlist_id)
-        manager.generate_random_playlist(tracks_count=tracks_count)
-        return {
-            "message": "Random playlist generated successfully. Check you playlists :)"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.delete("/playlists/{playlist_id}", response_model=MessageResponse)
-def delete_playlist(
-    playlist_id: int,
-    token: str = Query(..., description="SoundCloud API token"),
-):
-    try:
-        manager = SoundCloudPlaylistManager(
-            token=token,
+        options = PlaylistCreateOptions(
+            title=request.title,
+            visibility=request.visibility
         )
-        manager.delete_playlist(playlist_id)
-        return {"message": f"Playlist {playlist_id} deleted"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return manager.merge_playlists(
+            playlist_ids=request.playlist_ids,
+            options=options
+        )
+    except TrackLimitExceededError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except PlaylistManagerError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/playlists/random", response_model=ApiResponse)
+async def create_random_playlist(
+        request: RandomPlaylistRequest = Body(...),
+        manager: SoundCloudPlaylistManager = Depends(get_playlist_manager)
+):
+    """Create a playlist with random tracks from a base playlist."""
+    try:
+        options = PlaylistCreateOptions(
+            title=request.title,
+            visibility=request.visibility
+        )
+        return manager.create_random_playlist(
+            base_playlist_id=request.base_playlist_id,
+            track_count=request.track_count,
+            options=options
+        )
+    except TrackLimitExceededError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except PlaylistManagerError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.delete("/playlists/{playlist_id}", response_model=ApiResponse)
+async def delete_playlist(
+        playlist_id: int,
+        manager: SoundCloudPlaylistManager = Depends(get_playlist_manager)
+):
+    """Delete a playlist."""
+    try:
+        return manager.delete_playlist(playlist_id)
+    except PlaylistManagerError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+router.description = """
+SoundCloud Playlist Manager API
+
+This API provides endpoints for managing SoundCloud playlists, including:
+- User information retrieval
+- Playlist management
+- Track management
+- Playlist creation and modification
+"""
+
+router.tags = [{
+    "name": "soundcloud",
+    "description": "SoundCloud playlist management operations"
+}]

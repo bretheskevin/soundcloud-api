@@ -1,93 +1,280 @@
-import random
+from dataclasses import dataclass
+from typing import List, Optional
+from enum import Enum
+from soundcloud import SoundCloud, BasicAlbumPlaylist, User, BasicTrack
 
-from soundcloud import SoundCloud
+from .api_responses.api_response import ApiResponse
+
+class PlaylistVisibility(str, Enum):
+    PRIVATE = "private"
+    PUBLIC = "public"
+
+@dataclass
+class PlaylistCreateOptions:
+    title: str
+    visibility: PlaylistVisibility = PlaylistVisibility.PRIVATE
+    track_limit: int = 500
+
+
+class PlaylistManagerError(Exception):
+    """Base exception for playlist manager errors"""
+    pass
+
+
+class TrackLimitExceededError(PlaylistManagerError):
+    """Raised when track limit is exceeded"""
+    pass
+
+
+class InvalidTokenError(PlaylistManagerError):
+    """Raised when SoundCloud token is invalid"""
+    pass
 
 
 class SoundCloudPlaylistManager:
-    __title__ = "UNPLAYED TRACKS"
+    """
+    Manages SoundCloud playlist operations with improved error handling,
+    type safety, and separation of concerns.
+    """
 
-    def __init__(
-        self,
-        token: str,
-        base_playlist_id: int = -1,
-        played_playlist_ids=None,
-        title: str = None,
-    ):
-        if played_playlist_ids is None:
-            played_playlist_ids = []
-        self.sc = SoundCloud(auth_token=token)
-        self.base_playlist_id = base_playlist_id
-        self.played_playlist_ids = played_playlist_ids
+    def __init__(self, token: str):
+        """
+        Initialize the playlist manager with a SoundCloud client.
 
-        if title:
-            self.__title__ = title
+        Args:
+            token: SoundCloud authentication token
 
-    def check_token(self) -> bool:
-        return self.sc.is_auth_token_valid()
+        Raises:
+            InvalidTokenError: If the provided token is invalid
+        """
+        self._validate_token(token)
+        self._client = SoundCloud(auth_token=token)
 
-    def get_track_ids(self, playlist_id: int) -> list:
-        return [track.id for track in self.sc.get_playlist(playlist_id).tracks]
+    def _validate_token(self, token: str) -> None:
+        """Validate the SoundCloud authentication token."""
+        try:
+            client = SoundCloud(auth_token=token)
+            if not client.is_auth_token_valid():
+                raise InvalidTokenError("Invalid SoundCloud authentication token")
+        except Exception as e:
+            raise InvalidTokenError(f"Failed to validate token: {str(e)}")
 
-    def get_unplayed_track_ids(self) -> list:
-        base_track_ids = self.get_track_ids(self.base_playlist_id)
-        played_track_ids = [
-            track_id
-            for playlist_id in self.played_playlist_ids
-            for track_id in self.get_track_ids(playlist_id)
-        ]
-        return [
-            track_id for track_id in base_track_ids if track_id not in played_track_ids
-        ]
+    def _get_track_ids(self, playlist_id: int) -> List[int]:
+        """
+        Get track IDs from a playlist.
 
-    def get_track_ids_from_playlist_ids(self, playlist_ids: list) -> list:
-        return [
-            track_id
-            for playlist_id in playlist_ids
-            for track_id in self.get_track_ids(playlist_id)
-        ]
+        Args:
+            playlist_id: ID of the playlist
 
-    def create_unplayed_tracks(self) -> None:
-        unplayed_track_ids = self.get_unplayed_track_ids()
-        self.sc.post_playlist("private", self.__title__, unplayed_track_ids)
+        Returns:
+            List of track IDs
+        """
+        try:
+            playlist = self._client.get_playlist(playlist_id)
+            return [track.id for track in playlist.tracks]
+        except Exception as e:
+            raise PlaylistManagerError(f"Failed to get track IDs: {str(e)}")
 
-    def create_playlist_from_playlist_ids(self, playlist_ids: list) -> dict:
-        track_ids = self.get_track_ids_from_playlist_ids(playlist_ids)
-        track_ids = list(set(track_ids))
+    def _create_playlist(self, options: PlaylistCreateOptions, track_ids: List[int]) -> ApiResponse:
+        """
+        Create a new playlist with the given tracks.
 
-        if len(track_ids) > 500:
-            return {
-                "success": False,
-                "message": "You can only create playlists with a maximum of 500 tracks",
-            }
+        Args:
+            options: Playlist creation options
+            track_ids: List of track IDs to add to the playlist
 
-        self.sc.post_playlist("private", self.__title__, track_ids)
-        return {
-            "success": True,
-            "message": "Playlist created successfully. Check you playlists :)",
-        }
+        Returns:
+            ApiResponse indicating success/failure
 
-    def generate_random_playlist(self, tracks_count: int = 30) -> None:
-        unplayed_track_ids = self.get_unplayed_track_ids()
-        random.shuffle(unplayed_track_ids)
+        Raises:
+            TrackLimitExceededError: If track limit is exceeded
+        """
+        if len(track_ids) > options.track_limit:
+            raise TrackLimitExceededError(
+                f"Track limit exceeded: {len(track_ids)} tracks (limit: {options.track_limit})"
+            )
 
-        self.sc.post_playlist(
-            "private", self.__title__, unplayed_track_ids[:tracks_count]
-        )
+        try:
+            self._client.post_playlist(
+                options.visibility.value,
+                options.title,
+                track_ids
+            )
+            return ApiResponse(
+                success=True,
+                message="Playlist created successfully. Check your playlists :)"
+            )
+        except Exception as e:
+            return ApiResponse(
+                success=False,
+                message=f"Failed to create playlist: {str(e)}"
+            )
 
-    def delete_playlist(self, playlist_id: int) -> None:
-        self.sc.delete_playlist(playlist_id)
+    def get_user(self, user_id: Optional[int] = None) -> User:
+        """
+        Get user information.
 
-    def get_me(self):
-        return self.sc.get_me()
+        Args:
+            user_id: Optional user ID. If None, returns current user
 
-    def get_user_playlists(self, user_id: int) -> list:
-        return self.sc.get_user_playlists(user_id)
+        Returns:
+            User information
+        """
+        try:
+            if user_id is None:
+                return self._client.get_me()
+            return self._client.get_user(user_id)
+        except Exception as e:
+            raise PlaylistManagerError(f"Failed to get user: {str(e)}")
 
-    def get_my_playlists(self) -> list:
-        return self.get_user_playlists(self.sc.get_me().id)
+    def get_playlists(self, user_id: Optional[int] = None) -> List[BasicAlbumPlaylist]:
+        """
+        Get user's playlists.
 
-    def get_user_tracks(self, user_id: int) -> list:
-        return self.sc.get_user_tracks(user_id)
+        Args:
+            user_id: Optional user ID. If None, returns current user's playlists
 
-    def get_my_tracks(self) -> list:
-        return self.get_user_tracks(self.sc.get_me().id)
+        Returns:
+            List of playlists
+        """
+        try:
+            user_id = user_id or self.get_user().id
+            return self._client.get_user_playlists(user_id)
+        except Exception as e:
+            raise PlaylistManagerError(f"Failed to get playlists: {str(e)}")
+
+    def get_tracks(self, user_id: Optional[int] = None) -> List[BasicTrack]:
+        """
+        Get user's tracks.
+
+        Args:
+            user_id: Optional user ID. If None, returns current user's tracks
+
+        Returns:
+            List of tracks
+        """
+        try:
+            user_id = user_id or self.get_user().id
+            return self._client.get_user_tracks(user_id)
+        except Exception as e:
+            raise PlaylistManagerError(f"Failed to get tracks: {str(e)}")
+
+    def create_unplayed_tracks_playlist(
+            self,
+            base_playlist_id: int,
+            played_playlist_ids: List[int],
+            options: PlaylistCreateOptions
+    ) -> ApiResponse:
+        """
+        Create a playlist of unplayed tracks.
+
+        Args:
+            base_playlist_id: ID of the base playlist
+            played_playlist_ids: List of playlist IDs containing played tracks
+            options: Playlist creation options
+
+        Returns:
+            ApiResponse indicating success/failure
+        """
+        try:
+            base_tracks = set(self._get_track_ids(base_playlist_id))
+            played_tracks = set()
+
+            for playlist_id in played_playlist_ids:
+                played_tracks.update(self._get_track_ids(playlist_id))
+
+            unplayed_tracks = list(base_tracks - played_tracks)
+            return self._create_playlist(options, unplayed_tracks)
+
+        except Exception as e:
+            return ApiResponse(
+                success=False,
+                message=f"Failed to create unplayed tracks playlist: {str(e)}"
+            )
+
+    def merge_playlists(
+            self,
+            playlist_ids: List[int],
+            options: PlaylistCreateOptions
+    ) -> ApiResponse:
+        """
+        Merge multiple playlists into a new playlist.
+
+        Args:
+            playlist_ids: List of playlist IDs to merge
+            options: Playlist creation options
+
+        Returns:
+            ApiResponse indicating success/failure
+        """
+        try:
+            all_tracks = set()
+            for playlist_id in playlist_ids:
+                all_tracks.update(self._get_track_ids(playlist_id))
+
+            return self._create_playlist(options, list(all_tracks))
+
+        except Exception as e:
+            return ApiResponse(
+                success=False,
+                message=f"Failed to merge playlists: {str(e)}"
+            )
+
+    def create_random_playlist(
+            self,
+            base_playlist_id: int,
+            track_count: int,
+            options: PlaylistCreateOptions
+    ) -> ApiResponse:
+        """
+        Create a playlist with random tracks from a base playlist.
+
+        Args:
+            base_playlist_id: ID of the base playlist
+            track_count: Number of tracks to include
+            options: Playlist creation options
+
+        Returns:
+            ApiResponse indicating success/failure
+        """
+        try:
+            track_ids = self._get_track_ids(base_playlist_id)
+
+            if track_count > len(track_ids):
+                return ApiResponse(
+                    success=False,
+                    message=f"Requested track count ({track_count}) exceeds available tracks ({len(track_ids)})"
+                )
+
+            random.shuffle(track_ids)
+            selected_tracks = track_ids[:track_count]
+
+            return self._create_playlist(options, selected_tracks)
+
+        except Exception as e:
+            return ApiResponse(
+                success=False,
+                message=f"Failed to create random playlist: {str(e)}"
+            )
+
+    def delete_playlist(self, playlist_id: int) -> ApiResponse:
+        """
+        Delete a playlist.
+
+        Args:
+            playlist_id: ID of the playlist to delete
+
+        Returns:
+            ApiResponse indicating success/failure
+        """
+        try:
+            self._client.delete_playlist(playlist_id)
+            return ApiResponse(
+                success=True,
+                message=f"Playlist {playlist_id} deleted successfully"
+            )
+        except Exception as e:
+            return ApiResponse(
+                success=False,
+                message=f"Failed to delete playlist: {str(e)}"
+            )

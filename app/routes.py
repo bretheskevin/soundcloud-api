@@ -139,8 +139,6 @@ async def merge_playlists(
             playlist_ids=request.playlist_ids,
             options=options
         )
-    except TrackLimitExceededError as e:
-        raise HTTPException(status_code=400, message="playlistTrackLimitExceeded")
     except PlaylistManagerError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

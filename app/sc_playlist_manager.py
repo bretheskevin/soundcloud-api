@@ -213,7 +213,11 @@ class SoundCloudPlaylistManager:
                 all_tracks.update(self._get_track_ids(playlist_id))
 
             return self._create_playlist(options, list(all_tracks))
-
+        except TrackLimitExceededError as e:
+            return ApiResponse(
+                success=False,
+                message="playlistTrackLimitExceeded"
+            )
         except Exception as e:
             return ApiResponse(
                 success=False,
